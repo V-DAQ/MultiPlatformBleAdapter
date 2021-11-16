@@ -9,9 +9,9 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.ParcelUuid;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.support.annotation.RequiresApi;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
 import android.util.SparseArray;
 
 import com.polidea.multiplatformbleadapter.errors.BleError;
@@ -25,6 +25,7 @@ import com.polidea.multiplatformbleadapter.utils.DisposableMap;
 import com.polidea.multiplatformbleadapter.utils.IdGenerator;
 import com.polidea.multiplatformbleadapter.utils.LogLevel;
 import com.polidea.multiplatformbleadapter.utils.RefreshGattCustomOperation;
+import com.polidea.multiplatformbleadapter.utils.CodedPhyCustomOperation;
 import com.polidea.multiplatformbleadapter.utils.SafeExecutor;
 import com.polidea.multiplatformbleadapter.utils.ServiceFactory;
 import com.polidea.multiplatformbleadapter.utils.UUIDConverter;
@@ -1306,6 +1307,24 @@ public class BleModule implements BleAdapter {
                     }
                 });
 
+
+        // Try to put the connection in coded PHY mode
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            connect = connect.flatMap(new Func1<RxBleConnection, Observable<RxBleConnection>>() {
+                @Override
+                public Observable<RxBleConnection> call(final RxBleConnection rxBleConnection) {
+                    return rxBleConnection
+                            .queue(new CodedPhyCustomOperation())
+                            .map(new Func1<Boolean, RxBleConnection>() {
+                                @Override
+                                public RxBleConnection call(Boolean refreshGattSuccess) {
+                                    return rxBleConnection;
+                                }
+                            });
+                }
+            });
+        }
+
         if (refreshGattMoment == RefreshGattMoment.ON_CONNECTED) {
             connect = connect.flatMap(new Func1<RxBleConnection, Observable<RxBleConnection>>() {
                 @Override
@@ -1314,7 +1333,7 @@ public class BleModule implements BleAdapter {
                             .queue(new RefreshGattCustomOperation())
                             .map(new Func1<Boolean, RxBleConnection>() {
                                 @Override
-                                public RxBleConnection call(Boolean refreshGattSuccess) {
+                                public RxBleConnection call(Boolean codedPhySuccess) {
                                     return rxBleConnection;
                                 }
                             });
