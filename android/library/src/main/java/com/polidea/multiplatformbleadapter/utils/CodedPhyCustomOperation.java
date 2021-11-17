@@ -2,6 +2,7 @@ package com.polidea.multiplatformbleadapter.utils;
 
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
+import android.bluetooth.BluetoothGattCallback;
 import android.os.Build;
 import android.util.Log;
 
@@ -60,8 +61,7 @@ public class CodedPhyCustomOperation implements RxBleCustomOperation<Boolean> {
                         return success;
                     }
                 })
-                        .subscribeOn(scheduler)
-                        .delay(1, TimeUnit.SECONDS, scheduler),
+                        .subscribeOn(scheduler),
                 rxBleGattCallback.<Boolean>observeDisconnect()
         );
     }
