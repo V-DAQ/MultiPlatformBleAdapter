@@ -15,7 +15,7 @@ public class Device {
     @Nullable
     private Integer mtu;
     @Nullable
-    private Integer txPhy;
+    private Integer phy;
     @Nullable
     private List<Service> services;
 
@@ -58,8 +58,13 @@ public class Device {
         this.mtu = mtu;
     }
 
+    @Nullable
+    public Integer getPhy() {
+        return phy;
+    }
+
     public void setPhy(Integer txPhy) {
-        this.txPhy = txPhy;
+        this.phy = txPhy;
     }
 
     @Nullable
