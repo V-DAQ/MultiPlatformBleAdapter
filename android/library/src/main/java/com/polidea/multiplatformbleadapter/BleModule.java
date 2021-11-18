@@ -1316,25 +1316,18 @@ public class BleModule implements BleAdapter {
         // attempt to put the connection in coded PHY and listen to the update
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             Log.d("CodedPhy", "Queuing setPreferredPhy");
-            connect.flatMap(rxBleConnection -> rxBleConnection
+            connect = connect.flatMap(rxBleConnection -> rxBleConnection
                     .queue(new CodedPhyCustomOperation())
-                    .map(txPhy -> Log.d("CodedPhy", String.format("Received onPhyUpdate :-) txPhy=%d",  txPhy))));
+                    .map(txPhy -> {
+                        Log.d("CodedPhy", String.format("Received onPhyUpdate :-) txPhy=%d", txPhy));
+                        return rxBleConnection;
+                    }));
         }
 
         if (refreshGattMoment == RefreshGattMoment.ON_CONNECTED) {
-            connect = connect.flatMap(new Func1<RxBleConnection, Observable<RxBleConnection>>() {
-                @Override
-                public Observable<RxBleConnection> call(final RxBleConnection rxBleConnection) {
-                    return rxBleConnection
-                            .queue(new RefreshGattCustomOperation())
-                            .map(new Func1<Boolean, RxBleConnection>() {
-                                @Override
-                                public RxBleConnection call(Boolean refreshGattSuccess) {
-                                    return rxBleConnection;
-                                }
-                            });
-                }
-            });
+            connect = connect.flatMap(rxBleConnection -> rxBleConnection
+                    .queue(new RefreshGattCustomOperation())
+                    .map(refreshGattSuccess -> rxBleConnection));
         }
 
         if (connectionPriority > 0 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
