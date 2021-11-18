@@ -53,6 +53,15 @@ public interface BleAdapter {
             OnSuccessCallback<Device> onSuccessCallback,
             OnErrorCallback onErrorCallback);
 
+    void requestPHYForDevice(
+            String deviceIdentifier,
+            int txPhy,
+            int rxPhy,
+            int phyOptions,
+            String transactionId,
+            OnSuccessCallback<Device> onSuccessCallback,
+            OnErrorCallback onErrorCallback);
+
     void getKnownDevices(
             String[] deviceIdentifiers,
             OnSuccessCallback<Device[]> onSuccessCallback,

@@ -15,6 +15,8 @@ public class Device {
     @Nullable
     private Integer mtu;
     @Nullable
+    private Integer txPhy;
+    @Nullable
     private List<Service> services;
 
     public Device(String id, String name) {
@@ -54,6 +56,10 @@ public class Device {
 
     public void setMtu(Integer mtu) {
         this.mtu = mtu;
+    }
+
+    public void setPhy(Integer txPhy) {
+        this.txPhy = txPhy;
     }
 
     @Nullable

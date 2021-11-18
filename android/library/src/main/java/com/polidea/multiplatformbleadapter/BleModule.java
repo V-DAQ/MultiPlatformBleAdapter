@@ -59,6 +59,7 @@ import rx.functions.Action1;
 import rx.functions.Func0;
 import rx.functions.Func1;
 import rx.schedulers.Schedulers;
+import rx.android.schedulers.AndroidSchedulers;
 
 import static com.polidea.multiplatformbleadapter.utils.Constants.BluetoothState;
 
@@ -84,8 +85,6 @@ public class BleModule implements BleAdapter {
     private final DisposableMap pendingTransactions = new DisposableMap();
 
     private final DisposableMap connectingDevices = new DisposableMap();
-
-    private final DisposableMap onPhyUpdates = new DisposableMap();
 
     private BluetoothManager bluetoothManager;
 
@@ -139,7 +138,6 @@ public class BleModule implements BleAdapter {
         }
         pendingTransactions.removeAllSubscriptions();
         connectingDevices.removeAllSubscriptions();
-        onPhyUpdates.removeAllSubscriptions();
 
         discoveredServices.clear();
         discoveredCharacteristics.clear();
@@ -365,6 +363,63 @@ public class BleModule implements BleAdapter {
     }
 
     @Override
+    public void requestPHYForDevice(String deviceIdentifier,
+                                    int txPhy,
+                                    int rxPhy,
+                                    int phyOptions,
+                                    String transactionId,
+                                    OnSuccessCallback<Device> onSuccessCallback,
+                                    OnErrorCallback onErrorCallback) {
+        final Device device;
+        try {
+            device = getDeviceById(deviceIdentifier);
+        } catch (BleError error) {
+            onErrorCallback.onError(error);
+            return;
+        }
+
+        final RxBleConnection connection = getConnectionOrEmitError(device.getId(), onErrorCallback);
+        if (connection == null) {
+            return;
+        }
+
+        final SafeExecutor<Device> safeExecutor = new SafeExecutor<>(onSuccessCallback, onErrorCallback);
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            final Subscription subscription = connection
+                    .setPreferredPhy(txPhy, rxPhy, phyOptions)
+                    .doOnUnsubscribe(new Action0() {
+                        @Override
+                        public void call() {
+                            safeExecutor.error(BleErrorUtils.cancelled());
+                            pendingTransactions.removeSubscription(transactionId);
+                        }
+                    }).subscribe(new Observer<Integer>() {
+                        @Override
+                        public void onCompleted() {
+                            pendingTransactions.removeSubscription(transactionId);
+                        }
+
+                        @Override
+                        public void onError(Throwable error) {
+                            safeExecutor.error(errorConverter.toError(error));
+                            pendingTransactions.removeSubscription(transactionId);
+                        }
+
+                        @Override
+                        public void onNext(Integer txPhy) {
+                            device.setPhy(txPhy);
+                            safeExecutor.success(device);
+                        }
+                    });
+
+            pendingTransactions.replaceSubscription(transactionId, subscription);
+        } else {
+            onSuccessCallback.onSuccess(device);
+        }
+    }
+
+    @Override
     public void getKnownDevices(String[] deviceIdentifiers,
                                 OnSuccessCallback<Device[]> onSuccessCallback,
                                 OnErrorCallback onErrorCallback) {
@@ -466,7 +521,6 @@ public class BleModule implements BleAdapter {
 
         final RxBleDevice device = rxBleClient.getBleDevice(deviceIdentifier);
 
-        onPhyUpdates.removeSubscription(deviceIdentifier);
         if (connectingDevices.removeSubscription(deviceIdentifier) && device != null) {
             onSuccessCallback.onSuccess(rxBleDeviceToDeviceMapper.map(device, null));
         } else {
@@ -1315,32 +1369,20 @@ public class BleModule implements BleAdapter {
                     }
                 });
 
-        // attempt to put the connection in coded PHY and listen to the update
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Observable<Integer> onPhyUpdateObserver = connect.flatMap(rxBleConnection -> rxBleConnection.queue(new ListenToPhyUpdateCustomOperation()));
-            final Subscription onPhyUpdateSubscription = onPhyUpdateObserver
-                    .subscribe(new Observer<Integer>() {
-                        @Override
-                        public void onCompleted() {
-
-                        }
-
-                        @Override
-                        public void onError(Throwable e) {
-                            Log.d("CodedPhy", "Error setting preferred PHY");
-                        }
-
-                        @Override
-                        public void onNext(Integer txPhy) {
-                            Log.d("CodedPhy", String.format("Received PHY update: txPhy=%d", txPhy));
-                        }
-                    });
-            onPhyUpdates.replaceSubscription(device.getMacAddress(), onPhyUpdateSubscription);
-
-            connect = connect.flatMap(rxBleConnection -> rxBleConnection
-                    .queue(new SetPreferredPhyCustomOperation())
-                    .map(refreshGattSuccess -> rxBleConnection));
-        }
+//        // attempt to put the connection in coded PHY and listen to the update
+//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+////            connect.flatMap(rxBleConnection -> rxBleConnection.queue(new ListenToPhyUpdateCustomOperation()))
+////                    .observeOn(AndroidSchedulers.mainThread())
+////                    .subscribe(txPhy -> Log.d("CodedPhy", String.format("Received PHY update: txPhy=%d", txPhy))
+////                            , throwable -> {
+////                                throwable.getMessage();
+////                                Log.d("CodedPhy", String.format("Failed to set preferred PHY: %s", throwable.toString()));
+////                            });
+//
+//            connect = connect.flatMap(rxBleConnection -> rxBleConnection
+//                    .queue(new SetPreferredPhyCustomOperation())
+//                    .map(refreshGattSuccess -> rxBleConnection));
+//        }
 
         if (refreshGattMoment == RefreshGattMoment.ON_CONNECTED) {
             connect = connect.flatMap(rxBleConnection -> rxBleConnection
@@ -1428,7 +1470,6 @@ public class BleModule implements BleAdapter {
 
         cleanServicesAndCharacteristicsForDevice(device);
         connectingDevices.removeSubscription(device.getId());
-        onPhyUpdates.removeSubscription(device.getId());
     }
 
     private void safeDiscoverAllServicesAndCharacteristicsForDevice(final Device device,

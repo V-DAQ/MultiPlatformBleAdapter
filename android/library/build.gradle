@@ -51,6 +51,7 @@ dependencies {
     implementation "com.jakewharton.rxrelay:rxrelay:1.2.0"
     implementation "com.polidea.rxandroidble:dagger-library-shadow:1.7.1"
     implementation "io.reactivex:rxjava:1.3.8"
+    implementation 'io.reactivex:rxandroid:1.2.1'
     implementation files('../../../RxAndroidBle/rxandroidble/build/outputs/aar/rxandroidble-release.aar')
     testImplementation 'junit:junit:4.12'
 }
