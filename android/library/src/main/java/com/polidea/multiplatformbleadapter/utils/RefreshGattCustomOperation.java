@@ -36,7 +36,6 @@ public class RefreshGattCustomOperation implements RxBleCustomOperation<Boolean>
                                 RxBleLog.d("Could not find function BluetoothGatt.refresh()");
                                 break call;
                             }
-
                             success = (Boolean) bluetoothGattRefreshFunction.invoke(bluetoothGatt);
 
                             if (!success) RxBleLog.d("BluetoothGatt.refresh() returned false");

@@ -1,6 +1,7 @@
 package com.polidea.multiplatformbleadapter;
 
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothGattService;
@@ -9,9 +10,12 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.ParcelUuid;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
+
+import android.util.Log;
 import android.util.SparseArray;
 
 import com.polidea.multiplatformbleadapter.errors.BleError;
@@ -35,12 +39,14 @@ import com.polidea.rxandroidble.NotificationSetupMode;
 import com.polidea.rxandroidble.RxBleAdapterStateObservable;
 import com.polidea.rxandroidble.RxBleClient;
 import com.polidea.rxandroidble.RxBleConnection;
+import com.polidea.rxandroidble.RxBleCustomOperation;
 import com.polidea.rxandroidble.RxBleDevice;
 import com.polidea.rxandroidble.RxBleDeviceServices;
 import com.polidea.rxandroidble.internal.RxBleLog;
 import com.polidea.rxandroidble.scan.ScanFilter;
 import com.polidea.rxandroidble.scan.ScanSettings;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -111,6 +117,7 @@ public class BleModule implements BleAdapter {
     public void createClient(String restoreStateIdentifier,
                              OnEventCallback<String> onAdapterStateChangeCallback,
                              OnEventCallback<Integer> onStateRestored) {
+        RxBleClient.setLogLevel(RxBleLog.INFO);
         rxBleClient = RxBleClient.create(context);
         adapterStateChangesSubscription = monitorAdapterStateChanges(context, onAdapterStateChangeCallback);
 
@@ -418,7 +425,6 @@ public class BleModule implements BleAdapter {
         }
 
         onSuccessCallback.onSuccess(localConnectedDevices.toArray(new Device[localConnectedDevices.size()]));
-
     }
 
     @Override
@@ -1307,22 +1313,12 @@ public class BleModule implements BleAdapter {
                     }
                 });
 
-
-        // Try to put the connection in coded PHY mode
+        // attempt to put the connection in coded PHY and listen to the update
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            connect = connect.flatMap(new Func1<RxBleConnection, Observable<RxBleConnection>>() {
-                @Override
-                public Observable<RxBleConnection> call(final RxBleConnection rxBleConnection) {
-                    return rxBleConnection
-                            .queue(new CodedPhyCustomOperation())
-                            .map(new Func1<Boolean, RxBleConnection>() {
-                                @Override
-                                public RxBleConnection call(Boolean refreshGattSuccess) {
-                                    return rxBleConnection;
-                                }
-                            });
-                }
-            });
+            Log.d("CodedPhy", "Queuing setPreferredPhy");
+            connect.flatMap(rxBleConnection -> rxBleConnection
+                    .queue(new CodedPhyCustomOperation())
+                    .map(txPhy -> Log.d("CodedPhy", String.format("Received onPhyUpdate :-) txPhy=%d",  txPhy))));
         }
 
         if (refreshGattMoment == RefreshGattMoment.ON_CONNECTED) {
@@ -1333,7 +1329,7 @@ public class BleModule implements BleAdapter {
                             .queue(new RefreshGattCustomOperation())
                             .map(new Func1<Boolean, RxBleConnection>() {
                                 @Override
-                                public RxBleConnection call(Boolean codedPhySuccess) {
+                                public RxBleConnection call(Boolean refreshGattSuccess) {
                                     return rxBleConnection;
                                 }
                             });
@@ -1384,11 +1380,11 @@ public class BleModule implements BleAdapter {
             });
         }
 
-
         final Subscription subscription = connect
                 .subscribe(new Observer<RxBleConnection>() {
                     @Override
                     public void onCompleted() {
+
                     }
 
                     @Override

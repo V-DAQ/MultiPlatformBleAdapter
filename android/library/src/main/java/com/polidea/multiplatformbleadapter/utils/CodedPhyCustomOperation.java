@@ -2,7 +2,6 @@ package com.polidea.multiplatformbleadapter.utils;
 
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
-import android.bluetooth.BluetoothGattCallback;
 import android.os.Build;
 import android.util.Log;
 
@@ -12,57 +11,50 @@ import com.polidea.rxandroidble.RxBleCustomOperation;
 import com.polidea.rxandroidble.internal.RxBleLog;
 import com.polidea.rxandroidble.internal.connection.RxBleGattCallback;
 
-import java.lang.reflect.Method;
-import java.util.concurrent.Callable;
-import java.util.concurrent.TimeUnit;
-
+import rx.Emitter;
 import rx.Observable;
 import rx.Scheduler;
+import rx.Subscription;
 
 
-public class CodedPhyCustomOperation implements RxBleCustomOperation<Boolean> {
-
+public class CodedPhyCustomOperation implements RxBleCustomOperation<Integer> {
     @NonNull
     @Override
-    public Observable<Boolean> asObservable(
+    public Observable<Integer> asObservable(
             final BluetoothGatt bluetoothGatt,
             final RxBleGattCallback rxBleGattCallback,
             final Scheduler scheduler
-    ) throws Throwable {
+    ) {
+        RxBleLog.i("Calling BluetoothGatt.setPreferredPhy()");
+        Log.i("CodedPhy", String.format("Calling BluetoothGatt.setPreferredPhy()"));
 
         return Observable.amb(
-                Observable.fromCallable(new Callable<Boolean>() {
-                    @Override
-                    public Boolean call() throws Exception {
-                        boolean success = false;
-                        call:
-                        try {
-                            Method setPreferredPhyFunction = bluetoothGatt.getClass().getMethod("setPreferredPhy", int.class, int.class, int.class);
-                            if (setPreferredPhyFunction == null) {
-                                RxBleLog.d("Could not find function BluetoothGatt.setPreferredPhy()");
-                                Log.d("CodedPhy", "Could not find function BluetoothGatt.setPreferredPhy()");
-                                break call;
-                            }
-
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                setPreferredPhyFunction.invoke(bluetoothGatt,
-                                                BluetoothDevice.PHY_LE_CODED_MASK,
-                                                BluetoothDevice.PHY_LE_CODED_MASK,
-                                                BluetoothDevice.PHY_OPTION_S2
-                                );
-                            }
-                            success = true;
-                        } catch (Exception e) {
-                            RxBleLog.d(e, "Could not call function BluetoothGatt.setPreferredPhy()");
-                            Log.d("CodedPhy", String.format("Could not call function BluetoothGatt.setPreferredPhy(): %s", e.getMessage()));
-                        }
-                        RxBleLog.i("Calling BluetoothGatt.setPreferredPhy() status: %s", success ? "Success" : "Failure");
-                        Log.i("CodedPhy", String.format("Calling BluetoothGatt.setPreferredPhy() status: %s", success ? "Success" : "Failure"));
-                        return success;
-                    }
-                })
+                setPhyAndObserve(bluetoothGatt, rxBleGattCallback)
                         .subscribeOn(scheduler),
-                rxBleGattCallback.<Boolean>observeDisconnect()
+                rxBleGattCallback.<Boolean>observeDisconnect().map(status -> 257)
         );
+    }
+
+    @NonNull
+    private Observable<Integer> setPhyAndObserve(
+            final BluetoothGatt bluetoothGatt,
+            final RxBleGattCallback rxBleGattCallback) {
+        Observable<Integer> onPhyUpdate = rxBleGattCallback.getOnPhyUpdate();
+
+        return Observable.create(emitter -> {
+            Subscription subscription = onPhyUpdate.subscribe(emitter);
+            emitter.setCancellation(subscription::unsubscribe);
+
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    bluetoothGatt.setPreferredPhy(BluetoothDevice.PHY_LE_CODED_MASK,
+                            BluetoothDevice.PHY_LE_CODED_MASK,
+                            BluetoothDevice.PHY_OPTION_S2
+                    );
+                }
+            } catch (Throwable throwable) {
+                emitter.onError(throwable);
+            }
+        }, Emitter.BackpressureMode.BUFFER);
     }
 }
