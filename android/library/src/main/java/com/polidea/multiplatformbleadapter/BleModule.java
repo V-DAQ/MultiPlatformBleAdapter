@@ -1290,10 +1290,20 @@ public class BleModule implements BleAdapter {
             return;
         }
 
-        ScanSettings scanSettings = new ScanSettings.Builder()
+        ScanSettings.Builder scanSettingsBuilder = new ScanSettings.Builder()
                 .setScanMode(scanMode)
-                .setCallbackType(callbackType)
-                .build();
+                .setCallbackType(callbackType);
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            if (bluetoothAdapter.isLeCodedPhySupported()) {
+                scanSettingsBuilder.setPhy(255); // ScanSettings.PHY_LE_ALL_SUPPORTED
+                Log.d("CodedPhy", "Setting coded PHY_LE_ALL_SUPPORTED for scan PHY");
+            } else {
+                Log.d("CodedPhy", "This device doesn't support coded PHY for scanning. Using 1M");
+            }
+        }
+
+        ScanSettings scanSettings = scanSettingsBuilder.build();
 
         int length = uuids == null ? 0 : uuids.length;
         ScanFilter[] filters = new ScanFilter[length];
