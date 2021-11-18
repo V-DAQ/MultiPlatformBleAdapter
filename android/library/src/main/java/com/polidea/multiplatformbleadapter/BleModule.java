@@ -1369,21 +1369,6 @@ public class BleModule implements BleAdapter {
                     }
                 });
 
-//        // attempt to put the connection in coded PHY and listen to the update
-//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-////            connect.flatMap(rxBleConnection -> rxBleConnection.queue(new ListenToPhyUpdateCustomOperation()))
-////                    .observeOn(AndroidSchedulers.mainThread())
-////                    .subscribe(txPhy -> Log.d("CodedPhy", String.format("Received PHY update: txPhy=%d", txPhy))
-////                            , throwable -> {
-////                                throwable.getMessage();
-////                                Log.d("CodedPhy", String.format("Failed to set preferred PHY: %s", throwable.toString()));
-////                            });
-//
-//            connect = connect.flatMap(rxBleConnection -> rxBleConnection
-//                    .queue(new SetPreferredPhyCustomOperation())
-//                    .map(refreshGattSuccess -> rxBleConnection));
-//        }
-
         if (refreshGattMoment == RefreshGattMoment.ON_CONNECTED) {
             connect = connect.flatMap(rxBleConnection -> rxBleConnection
                     .queue(new RefreshGattCustomOperation())
