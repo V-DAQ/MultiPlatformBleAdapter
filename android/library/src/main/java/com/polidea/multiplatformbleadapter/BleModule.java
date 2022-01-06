@@ -1,6 +1,7 @@
 package com.polidea.multiplatformbleadapter;
 
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothGattService;
@@ -1296,10 +1297,11 @@ public class BleModule implements BleAdapter {
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             if (bluetoothAdapter.isLeCodedPhySupported()) {
-                scanSettingsBuilder.setPhy(255); // ScanSettings.PHY_LE_ALL_SUPPORTED
-                Log.d("CodedPhy", "Setting coded PHY_LE_ALL_SUPPORTED for scan PHY");
+                scanSettingsBuilder.setLegacy(false);
+                scanSettingsBuilder.setPhy(ScanSettings.PHY_LE_ALL_SUPPORTED);
+                Log.d("CodedPhy", "Setting PHY_LE_CODED for scan PHY");
             } else {
-                Log.d("CodedPhy", "This device doesn't support coded PHY for scanning. Using 1M");
+                Log.d("CodedPhy", "This device doesn't support coded PHY for scanning. Legacy scanning only");
             }
         }
 
