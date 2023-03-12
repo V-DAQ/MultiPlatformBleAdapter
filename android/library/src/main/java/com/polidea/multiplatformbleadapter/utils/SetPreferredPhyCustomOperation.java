@@ -6,9 +6,9 @@ import android.os.Build;
 
 import androidx.annotation.NonNull;
 
-import com.polidea.rxandroidble.RxBleCustomOperation;
-import com.polidea.rxandroidble.internal.RxBleLog;
-import com.polidea.rxandroidble.internal.connection.RxBleGattCallback;
+import com.polidea.rxandroidble2.RxBleCustomOperation;
+import com.polidea.rxandroidble2.internal.RxBleLog;
+import com.polidea.rxandroidble2.internal.connection.RxBleGattCallback;
 
 import java.util.concurrent.TimeUnit;
 

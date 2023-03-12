@@ -5,8 +5,8 @@ import android.util.Log;
 
 import androidx.annotation.NonNull;
 
-import com.polidea.rxandroidble.RxBleCustomOperation;
-import com.polidea.rxandroidble.internal.connection.RxBleGattCallback;
+import com.polidea.rxandroidble2.RxBleCustomOperation;
+import com.polidea.rxandroidble2.internal.connection.RxBleGattCallback;
 
 import rx.Emitter;
 import rx.Observable;
